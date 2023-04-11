@@ -1,2 +1,2 @@
 # beyond-kubectl
-Home of nifty kubectl plugins.
+Home of nifty Kubectl plugins.

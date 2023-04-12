@@ -3,7 +3,7 @@ Prints a list of all rules held by a given user in a given namespace in Rancher 
 Output has the following format:
 `ResourceName` `Resource` `Group` [ `Verbs` ]
 ``` bash
-./kubectl-what_can_i --user="u-6tkvj" --namespace="c-k4mkf"
+kubectl what-can-i --user="u-6tkvj" --namespace="c-k4mkf"
 
 Rules for Namespace: 'c-k4mkf'
 *            *                                          *                             [ get ]

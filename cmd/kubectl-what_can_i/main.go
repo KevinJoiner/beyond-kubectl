@@ -92,13 +92,11 @@ func main() {
 		log.Fatalf("Failed to get userInfo: %s", err.Error())
 	}
 	for _, ns := range namespaces {
-		allRules := map[string]map[string]struct{}{}
 		rules, err := resolver.RulesFor(userInfo, ns)
 		fmt.Printf("\nRules for Namespace: '%s'\n", ns)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "[Warning] Failed to resolve all rules: %s\n", err.Error())
 		}
-		dedupRules(allRules, rules)
-		printRules(allRules)
+		printRules(rules)
 	}
 }

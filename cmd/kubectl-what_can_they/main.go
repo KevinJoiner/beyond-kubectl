@@ -6,15 +6,19 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rancher/lasso/pkg/controller"
 	apisv3 "github.com/rancher/rancher/pkg/apis/management.cattle.io/v3"
 	"github.com/rancher/wrangler/pkg/generic"
 	"github.com/rancher/wrangler/pkg/kubeconfig"
+	"github.com/rancher/wrangler/pkg/ratelimit"
 	"github.com/rancher/wrangler/pkg/schemes"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,6 +57,7 @@ func main() {
 	}
 	kubeconfigPath := os.Getenv("KUBECONFIG")
 	restCfg, err := kubeconfig.GetNonInteractiveClientConfig(kubeconfigPath).ClientConfig()
+	restCfg.RateLimiter = ratelimit.None
 	if err != nil {
 		log.Fatalf("Failed to create rest Config: %s", err.Error())
 	}
@@ -91,12 +96,26 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to get userInfo: %s", err.Error())
 	}
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	ruleMap := make(map[string][]rbacv1.PolicyRule)
 	for _, ns := range namespaces {
-		rules, err := resolver.RulesFor(userInfo, ns)
+		wg.Add(1)
+		go func(namespace string) {
+			defer wg.Done()
+			rules, err := resolver.RulesFor(userInfo, namespace)
+			if err != nil {
+				logrus.Warnf("Failed to resolve all rules: %s\n", err.Error())
+			}
+			lock.Lock()
+			defer lock.Unlock()
+			ruleMap[namespace] = rules
+		}(ns)
+	}
+	wg.Wait()
+	for _, ns := range namespaces {
+		rules := ruleMap[ns]
 		fmt.Printf("\nRules for Namespace: '%s'\n", ns)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "[Warning] Failed to resolve all rules: %s\n", err.Error())
-		}
 		printRules(rules)
 	}
 }
